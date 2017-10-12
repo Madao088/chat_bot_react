@@ -6,28 +6,60 @@ import { ReactMic } from 'react-mic';
 class Bot extends React.Component{
     constructor(props){
         super(props);
-        this.state={converstaion:[{msg:'Hi.What can I do for You?',author:'b'}],query:"",context:{},sound:false,ctr:0,record: false};
+        this.state={converstaion:[{text:'Hi.What can I do for You?',user:'agent'}],query:"",context:{},sound:false,ctr:0,record: false};
         this._handleKeyPress=this._handleKeyPress.bind(this);
         this.getData=this.getData.bind(this);
+        this.getSearchResult=this.getSearchResult.bind(this);
+        this.getEmotion=this.getEmotion.bind(this);
         this.startRecording=this.startRecording.bind(this);
         this.stopRecording=this.stopRecording.bind(this);
         this.onStop=this.onStop.bind(this);   
     }
     startRecording() {
-    this.setState({
-      record: true
-    });
-  }
+        this.setState({
+        record: true
+        });
+    }
  
-  stopRecording (){
-    this.setState({
-      record: false
-    });
-  }
+    stopRecording (){
+        this.setState({
+        record: false
+        });
+    }
  
-  onStop(recordedBlob) {
-    console.log('recordedBlob is: ', recordedBlob);
-  }
+    onStop(recordedBlob) {
+        console.log('recordedBlob is: ', recordedBlob);
+    }
+
+    getEmotion(){
+        fetch("http://localhost:4000/watson/tone",{
+             method:'POST',
+            headers:{
+                'Content-Type':'application/json'
+            },
+            body:JSON.stringify({
+                query: this.state.conversation,
+            })
+        }).then((response)=>{
+            if(response.ok)
+                return response.json();
+        }).then((response)=>{
+            console.log(response);
+        })
+    }
+
+    getSearchResult(e){
+        fetch("http://localhost:4000/discovery/query?query="+e)
+        .then((response)=>{
+            if(response.ok)
+                return response.json();
+            else 
+                alert("error");
+        }).then((response)=>{
+            console.log(response);
+        })
+    }
+
     getData(e){
         this.setState({sound:false});
         fetch("http://localhost:4000/watson/query",{
@@ -40,7 +72,7 @@ class Bot extends React.Component{
                 context:this.state.context
             })
 
-        }).then((response)=>{
+        }).then((response)=>{   
             if(response.ok){
                 return response.json();
                 }
@@ -48,9 +80,11 @@ class Bot extends React.Component{
                 window.alert("Failed");
         }).then((response)=>{
             console.log(response);
+             if(response.discovery==true)
+                this.getSearchResult(response.input.text); 
             var conversation=this.state.converstaion;
             this.setState({query:response.output.text[0]});
-            conversation.push({msg:response.output.text[0],author:'b'});
+            conversation.push({text:response.output.text[0],user:'agent'});
             this.setState({conversation:conversation});
             this.setState({context:response.context});
             this.setState({sound:true});
@@ -64,7 +98,7 @@ class Bot extends React.Component{
     if (e.key === 'Enter') {
         var conversation=this.state.converstaion;
         
-        conversation.push({msg:e.target.value,author:'u'});
+        conversation.push({text:e.target.value,user:'customer'});
         this.setState({conversation:conversation});
         this.getData(e.target.value);
         e.target.value="";
@@ -92,13 +126,14 @@ class Bot extends React.Component{
                 <Col md={6} mdOffset={3} >
                     <div style={div}>
                         {this.state.converstaion.map(function(con,i){
-                            if (con.author=='b')
-                                return <p style={left}>{con.msg}</p>
+                            if (con.user=='agent')
+                                return <p style={left}>{con.text}</p>
                             else
-                                return <p style={right}>{con.msg}</p>
+                                return <p style={right}>{con.text}</p>
                         }, this)}
                         <input style={tRight} type="textbox" onKeyPress={this._handleKeyPress}/>
-                        { 
+                        <button onClick={this.getEmotion}>Get Emotion</button>
+                        {/* { 
                            <Sound
                                 url={"http://localhost:4000/watson/tts_test/"+this.state.ctr}
                                 playStatus={this.state.sound?Sound.status.PLAYING:Sound.status.STOPPED}
@@ -107,7 +142,7 @@ class Bot extends React.Component{
                                 onPlaying={this.handleSongPlaying}
                                 onFinishedPlaying={this.handleSongFinishedPlaying}
                                 /> 
-                                }
+                                } */}
 
                        {/* <ReactMic
                             record={this.state.record}
